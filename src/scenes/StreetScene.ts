@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { Player } from '../entities/Player';
+import { drawOSMMap, mapToWorld, type OSMMap } from '../world/osm';
 import { Vehicle } from '../entities/Vehicle';
 import { WORLD, roads, blocks, locations, colliders, type Rectangle, type Location } from '../world/map';
 
@@ -41,6 +42,7 @@ export class StreetScene extends Phaser.Scene {
     this.input.keyboard?.on('keydown-PLUS', ()=>this.changeZoom(.1));
     this.input.keyboard?.on('keydown-MINUS', ()=>this.changeZoom(-.1));
     this.setupTouch();
+    void this.loadStreetMap();
     this.toast('Welcome to Mester utca. Find the red car or a green Bubi bike!');
   }
 
@@ -122,6 +124,34 @@ export class StreetScene extends Phaser.Scene {
     }
     const near=this.nearbyLocation();
     hud('nearby',this.active?'W: forward · S: reverse · A/D: steer · E: exit':near?near.name+' · Press E to interact':'Walk around · E to enter a car or Bubi');
+  }
+
+
+  private async loadStreetMap():Promise<void> {
+    try {
+      const response = await fetch('/osm-map.json',{cache:'no-store'});
+      if(!response.ok)throw new Error('Map fetch HTTP '+response.status);
+      const map = await response.json() as OSMMap;
+      if(!Array.isArray(map.elements)||map.elements.length<50)throw new Error(map.error||'Map has no streets');
+      // Remove only the original schematic scenery; the player and vehicles remain.
+      for(const child of [...this.children.list]) if(child.depth<0)child.destroy();
+      const footprints=drawOSMMap(this,map);
+      this.obstacles.clear(true,true);
+      for(const b of footprints) {
+        const wall=this.obstacles.create(b.x+b.w/2,b.y+b.h/2,'invisible') as Phaser.Physics.Arcade.Image;
+        wall.setDisplaySize(Math.max(4,b.w-12),Math.max(4,b.h-12)).setVisible(false).refreshBody();
+      }
+      const pub=mapToWorld(47.47857,19.07400);
+      this.player.sprite.setPosition(pub.x-40,pub.y+12);
+      // Parked car and Bubi bike start near Maestro until confirmed station geometry is imported.
+      this.car.sprite.setPosition(pub.x-80,pub.y+75);
+      this.bicycle.sprite.setPosition(pub.x+30,pub.y+110);
+      this.cameras.main.setBounds(0,0,WORLD.width,WORLD.height);
+      this.toast('Real OpenStreetMap streets loaded! © OpenStreetMap contributors.');
+    }catch(error){
+      console.warn('Using fallback schematic map:',error);
+      this.toast('OSM data unavailable; using the schematic map until the next build.');
+    }
   }
 
   private createTextures():void {
