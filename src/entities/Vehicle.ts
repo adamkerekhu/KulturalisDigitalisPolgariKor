@@ -1,39 +1,45 @@
 import Phaser from 'phaser';
-import type { Rectangle } from '../world/map';
-import { onDriveableRoad, type RoadSegment } from '../world/osm';
-
+import { circleHitsBuildings, isOnDrivableRoad, WORLD_HEIGHT, WORLD_WIDTH, type CityGeometry, type Vec2 } from '../world/geo';
 export type VehicleKind='car'|'bike';
 export class Vehicle {
-  public readonly sprite:Phaser.GameObjects.Image;
-  public speed=0;
-  constructor(scene:Phaser.Scene,public kind:VehicleKind,x:number,y:number){
-    this.sprite=scene.add.image(x,y,kind==='car'?'red-car':'green-bike')
-      .setScale(kind==='car'?.36:.42).setDepth(25);
+ readonly sprite:Phaser.GameObjects.Image;
+ speed=0;
+ private wheelTurn=0;
+ constructor(scene:Phaser.Scene,readonly kind:VehicleKind,x:number,y:number){
+  this.sprite=scene.add.image(x,y,kind==='car'?'red-car':'green-bike')
+    .setScale(kind==='car'?.215:.14).setDepth(27);
+ }
+ get position():Vec2{return {x:this.sprite.x,y:this.sprite.y};}
+ get x():number{return this.sprite.x;}
+ get y():number{return this.sprite.y;}
+ get angle():number{return this.sprite.rotation;}
+ setPosition(x:number,y:number,angle=0):void{this.sprite.setPosition(x,y).setRotation(angle);}
+ update(inputX:number,inputY:number,dt:number,city:CityGeometry):void{
+  const car=this.kind==='car',max=car?110:44,acceleration=car?82:45;
+  if(inputY<-.1)this.speed+=acceleration*dt;
+  else if(inputY>.1)this.speed-=acceleration*dt*(this.speed>0?1.65:.65);
+  else this.speed*=Math.max(0,1-(car?1.35:2)*dt);
+  this.speed=Phaser.Math.Clamp(this.speed,-max*.33,max);
+  const steer=Phaser.Math.Clamp(inputX,-1,1);
+  const moving=Math.abs(this.speed)>1;
+  if(moving){
+   this.wheelTurn=Phaser.Math.Linear(this.wheelTurn,steer,Math.min(1,dt*5));
+   const grip=Phaser.Math.Clamp(Math.abs(this.speed)/(car?34:15),.2,1);
+   this.sprite.rotation+=this.wheelTurn*(car?2.0:2.6)*dt*grip*Math.sign(this.speed);
   }
-  get x():number{return this.sprite.x;}
-  get y():number{return this.sprite.y;}
-  get rotation():number{return this.sprite.rotation;}
-  steer(inputX:number,inputY:number,deltaSeconds:number,obstacles:Rectangle[],width:number,height:number,roads:RoadSegment[]=[]):void{
-    const accel=this.kind==='car'?290:170;
-    const max=this.kind==='car'?260:138;
-    const handbrake=inputY>.3 && this.speed>0;
-    if(inputY<-.15)this.speed+=accel*deltaSeconds;
-    else if(inputY>.15)this.speed-=accel*(handbrake?1.5:.55)*deltaSeconds;
-    else this.speed*=Math.max(0,1-(this.kind==='car'?1.25:2)*deltaSeconds);
-    this.speed=Phaser.Math.Clamp(this.speed,-max*.32,max);
-    const factor=Phaser.Math.Clamp(Math.abs(this.speed)/(this.kind==='car'?80:38),0.18,1);
-    if(Math.abs(this.speed)>3)this.sprite.rotation+=inputX*deltaSeconds*(this.kind==='car'?2.25:2.8)*factor*Math.sign(this.speed);
-    const distance=this.speed*deltaSeconds;
-    const x=this.x+Math.sin(this.rotation)*distance,y=this.y-Math.cos(this.rotation)*distance;
-    const radius=this.kind==='car'?11:7;
-    const blocked=x<radius||y<radius||x>width-radius||y>height-radius||
-      obstacles.some(b=>x+radius>b.x+4&&x-radius<b.x+b.w-4&&y+radius>b.y+4&&y-radius<b.y+b.h-4);
-    if(blocked){this.speed*=-.18;return;}
-    // No invisible rails: leaving paved roads slows the car sharply instead of teleporting it.
-    if(roads.length && !onDriveableRoad(x,y,roads,this.kind==='car'?9:14)){
-      this.speed*=Math.max(0,1-8*deltaSeconds);
-      if(this.kind==='car' && Math.abs(this.speed)>55)return;
-    }
-    this.sprite.setPosition(x,y);
+  const px=this.x+Math.sin(this.angle)*this.speed*dt;
+  const py=this.y-Math.cos(this.angle)*this.speed*dt;
+  const halfW=car?5.8:2.3,halfL=car?11:5.6;
+  const blocked=(p:Vec2)=>p.x<0||p.y<0||p.x>WORLD_WIDTH||p.y>WORLD_HEIGHT||circleHitsBuildings(p,car?2:1.1,city.buildings);
+  const fw={x:Math.sin(this.angle),y:-Math.cos(this.angle)};
+  const side={x:Math.cos(this.angle),y:Math.sin(this.angle)};
+  const corners=[-1,1].flatMap(f=>[-1,1].map(s=>({x:px+fw.x*halfL*f+side.x*halfW*s,y:py+fw.y*halfL*f+side.y*halfW*s})));
+  if(corners.some(blocked)){this.speed*=-.08;return;}
+  // Road aware: off-road driving is slow. Streets, service roads and crossing junctions are usable.
+  if(!isOnDrivableRoad({x:px,y:py},city.segments,car?9:12)){
+   this.speed*=Math.max(0,1-(car?5.5:2.8)*dt);
+   if(car&&Math.abs(this.speed)>40)return;
   }
+  this.sprite.setPosition(px,py);
+ }
 }
