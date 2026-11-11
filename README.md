@@ -1,44 +1,52 @@
-# LAST ORDERS · Mester utca (V0.1)
+# LAST ORDERS · Mester utca (V0.2)
 
-A free, single-player top-down browser game around Budapest's Mester utca. Walk around, visit labelled places, ride a MOL Bubi bike, and drive the red car.
+A free, browser-playable, top-down roaming game built with **Phaser 3.90**, TypeScript and Vite, hosted as static assets on Cloudflare Workers.
 
-## Controls
+## Current gameplay
 
-- WASD or arrow keys: walk / drive
-- Shift: sprint on foot
-- E: interact / enter / exit vehicle
-- +/-: zoom
-- Mobile: on-screen joystick and E button
+- One playable pedestrian, WASD/arrow keys, Shift to run
+- Phaser Arcade Physics building collisions and follow camera
+- Red car: press E near it to enter, W/S accelerate/reverse, A/D steer, E to exit
+- Green Bubi bicycle: E to ride or dismount
+- Labeled Maestro Pub, SPAR, tobacco shop and Mester Gyros
+- Mobile joystick + E control, +/- zoom on desktop
 
-## Technology
+The Mester utca environment is a **schematic placeholder**, not actual survey-grade geographical data. Do not use it for navigation. Shop placements beyond Maestro are illustrative and must be confirmed before a faithful neighborhood map is produced.
 
-**Zero runtime libraries:** HTML5 Canvas + JavaScript. The code runs directly in any recent browser. Cloudflare Workers serves the static HTML. No Supabase, Google Maps API, paid assets, backend or authentication.
+## Architecture
 
-## Run locally
+- `src/main.ts`: Phaser initialization
+- `src/scenes/StreetScene.ts`: game world, input and gameplay loop
+- `src/entities/Player.ts`: character controller with Arcade Physics
+- `src/entities/Vehicle.ts`: drivable car and rideable bicycle
+- `src/world/map.ts`: editable map geometry, landmarks and collision rectangles
+- `src/style.css`: HUD and mobile controls
 
-Open `index.html` in Chrome/Firefox, or run `python -m http.server 8000` in the repository folder.
+No React, Supabase, server, paid map API, registration or multiplayer yet. All gameplay is local to the browser.
 
-## Deploy to Cloudflare Workers
+## Local development
 
-Use the existing Worker name `kulturalisdigitalispolgarikor` and Cloudflare Workers Builds connected to this repository (main branch).
+```bash
+npm install
+npm run dev
+```
 
-- Install command: `npm install`
+## Production build and Cloudflare deployment
+
+Cloudflare Workers Builds settings:
+
+- Branch: `main`
 - Build command: `npm run build`
 - Deploy command: `npx wrangler deploy`
 
-The build copies the game into `public/` and Wrangler serves that folder via static assets. To deploy from your own terminal, run `npm install && npm run deploy` after authenticating with Wrangler.
+The Vite output is `dist/`. The existing `wrangler.jsonc` serves `dist/` as Worker static assets.
 
-## Disclaimer
+To deploy locally (with Wrangler authenticated):
 
-The Mester utca street layout is **stylized and approximate**, not a survey-accurate OSM reconstruction. Maestro Pub is associated with Mester utca 46 and Mester Gyros with Mester utca 12. SPAR, tobacco shop and Bubi placements are gameplay placeholders until verified against geocoded sources. This map is not for navigation.
+```bash
+npm run deploy
+```
 
-No third-party map imagery is embedded or reproduced.
+## Future work
 
-## Deployment trigger check (2026-11-11)
-
-A new commit to `main` requests an automatic build through the Cloudflare Workers Git integration. Verify the corresponding build and commit in Cloudflare's Deployments page; a GitHub commit alone does not confirm publication.
-
-
-## Release v0.1.3
-
-The red car now spawns at X=613, Y=1550 in the center of Mester utca, with the player beside it. The game displays v0.1.3 at the top left. This commit requests a fresh automatic Cloudflare build of `main`.
+Implement geographically verified OSM-derived streets, map editing via LDtk, authentic pixel-art assets, enterable interiors and later multiplayer with Cloudflare Durable Objects.
