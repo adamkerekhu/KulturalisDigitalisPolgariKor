@@ -24,7 +24,7 @@ for (const host of hosts) {
       method: 'POST',
       headers: {'Content-Type':'application/x-www-form-urlencoded', 'User-Agent':'LAST-ORDERS-Game/0.3 (+https://github.com/adamkerekhu/KulturalisDigitalisPolgariKor)'},
       body: new URLSearchParams({data:query}),
-      signal: AbortSignal.timeout(28000)
+      signal: AbortSignal.timeout(15000)
     });
     if (!response.ok) throw new Error('HTTP '+response.status);
     const json = await response.json();
