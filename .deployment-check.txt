@@ -1,0 +1,3 @@
+Cloudflare Workers Builds trigger test
+2026-11-11
+This file verifies whether a new push to main starts a deployment.
