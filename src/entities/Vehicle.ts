@@ -5,7 +5,7 @@ export type VehicleKind = 'car' | 'bike';
 export class Vehicle {
   public readonly sprite: Phaser.GameObjects.Image;
   public speed = 0;
-  constructor(private scene: Phaser.Scene, public kind: VehicleKind, x: number, y: number) {
+  constructor(scene: Phaser.Scene, public kind: VehicleKind, x: number, y: number) {
     const texture = kind === 'car' ? 'red-car' : 'green-bike';
     this.sprite = scene.add.image(x, y, texture).setDepth(25);
   }
