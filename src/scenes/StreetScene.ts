@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { Player } from '../entities/Player';
-import { drawOSMMap, mapToWorld, type OSMMap } from '../world/osm';
+import { drawOSMMap, mapToWorld, getRoadSegments, nearestRoad, type RoadSegment, type OSMMap } from '../world/osm';
 import { Vehicle } from '../entities/Vehicle';
 import { WORLD, roads, blocks, locations, colliders, type Rectangle, type Location } from '../world/map';
 
@@ -16,6 +16,8 @@ export class StreetScene extends Phaser.Scene {
   private obstacles!: Phaser.Physics.Arcade.StaticGroup;
   private activeColliders: Rectangle[] = colliders;
   private osmPoints: Array<{name:string;x:number;y:number}> = [];
+  private driveRoads:RoadSegment[]=[];
+  private baseZoom=2.15;
   private stick = {x:0,y:0};
   private touchInteract = false;
   private toastTimer?: ReturnType<typeof setTimeout>;
@@ -37,8 +39,10 @@ export class StreetScene extends Phaser.Scene {
     this.car = new Vehicle(this, 'car', 480, 1492);
     this.bicycle = new Vehicle(this, 'bike', 685, 1790);
     this.cameras.main.setBounds(0, 0, WORLD.width, WORLD.height);
-    this.cameras.main.startFollow(this.player.sprite, true, 0.12, 0.12);
-    this.cameras.main.setZoom(innerWidth<760 ? 0.75 : 1.05);
+    this.player.sprite.setScale(.62);
+    this.cameras.main.startFollow(this.player.sprite, true, 0.095, 0.095);
+    this.baseZoom=innerWidth<760?1.4:2.15;
+    this.cameras.main.setZoom(this.baseZoom);
     this.keys = this.input.keyboard!.addKeys({W:'W',A:'A',S:'S',D:'D',UP:'UP',DOWN:'DOWN',LEFT:'LEFT',RIGHT:'RIGHT',SHIFT:'SHIFT',E:'E',PLUS:'PLUS',MINUS:'MINUS'}) as DirectionKeys;
     this.input.keyboard?.on('keydown-E', (event: KeyboardEvent) => {if(!event.repeat)this.interact();});
     this.input.keyboard?.on('keydown-PLUS', ()=>this.changeZoom(.1));
@@ -70,7 +74,7 @@ export class StreetScene extends Phaser.Scene {
     document.getElementById('interact')?.addEventListener('pointerdown',ev=>{ev.preventDefault();this.touchInteract=true;});
   }
 
-  private changeZoom(diff:number):void {this.cameras.main.setZoom(Phaser.Math.Clamp(this.cameras.main.zoom+diff,.5,1.8));}
+  private changeZoom(diff:number):void {this.baseZoom=Phaser.Math.Clamp(this.baseZoom+diff,0.8,3.4);}
   private toast(message:string):void {
     const el=document.getElementById('toast');if(!el)return;
     el.textContent=message;el.style.opacity='1';
@@ -124,11 +128,15 @@ export class StreetScene extends Phaser.Scene {
     const dt=Math.min(delta/1000,.045);
     if(this.touchInteract){this.touchInteract=false;this.interact();}
     if(this.active){
-      this.active.steer(x,y,dt,this.activeColliders,WORLD.width,WORLD.height);
+      this.active.steer(x,y,dt,this.activeColliders,WORLD.width,WORLD.height,this.driveRoads);
       this.player.sprite.setPosition(this.active.x,this.active.y);
     } else {
       this.player.move(x,y,this.keys.SHIFT.isDown);
     }
+    const targetZoom=this.active?.kind==='car'?this.baseZoom*.76:this.active?.kind==='bike'?this.baseZoom*.90:this.baseZoom;
+    this.cameras.main.setZoom(Phaser.Math.Linear(this.cameras.main.zoom,targetZoom,Math.min(1,dt*2.7)));
+    const look=this.active ? Phaser.Math.Clamp(this.active.speed*.18,-38,38):0;
+    this.cameras.main.setFollowOffset(this.active?-Math.sin(this.active.rotation)*look:0,this.active?Math.cos(this.active.rotation)*look:0);
     const near=this.nearbyLocation();
     hud('nearby',this.active?'W: forward · S: reverse · A/D: steer · E: exit':near?near.name+' · Press E to interact':'Walk around · E to enter a car or Bubi');
   }
@@ -145,6 +153,7 @@ export class StreetScene extends Phaser.Scene {
       const footprints=drawOSMMap(this,map);
       this.obstacles.clear(true,true);
       this.activeColliders=footprints;
+      this.driveRoads=getRoadSegments(map);
       this.osmPoints = map.elements.filter(e=>e.type==='node' && e.lat!=null && e.lon!=null && e.tags?.name && /maestro|gyros|spar|dohánybolt|bubi/i.test(e.tags.name)).map(e=>({name:e.tags!.name!,...mapToWorld(e.lat!,e.lon!)}));
       this.osmPoints.push({name:'MAESTRO PUB',...mapToWorld(47.47857,19.07400)},{name:'SPAR MARKET',...mapToWorld(47.4784266,19.0742364)});
       for(const b of footprints) {
@@ -152,12 +161,17 @@ export class StreetScene extends Phaser.Scene {
         wall.setDisplaySize(Math.max(4,b.w-12),Math.max(4,b.h-12)).setVisible(false).refreshBody();
       }
       const pub=mapToWorld(47.47857,19.07400);
-      const candidates=[[pub.x-45,pub.y],[pub.x+45,pub.y],[pub.x,pub.y+45],[pub.x,pub.y-45],[pub.x-85,pub.y]];
+      const nearest=nearestRoad(pub.x,pub.y,this.driveRoads);
+      const candidates=nearest?[[nearest.x,nearest.y],[nearest.x+15,nearest.y],[nearest.x-15,nearest.y],[nearest.x,nearest.y+15],[nearest.x,nearest.y-15]]:[[pub.x-45,pub.y],[pub.x+45,pub.y],[pub.x,pub.y+45],[pub.x,pub.y-45],[pub.x-85,pub.y]];
       const spawn=candidates.find(([x,y])=>x>20&&y>20&&x<WORLD.width-20&&y<WORLD.height-20&&!footprints.some(b=>x>b.x&&x<b.x+b.w&&y>b.y&&y<b.y+b.h)) ?? [pub.x,pub.y];
       this.player.sprite.setPosition(spawn[0],spawn[1]);
       // Parked car and Bubi bike start near Maestro until confirmed station geometry is imported.
-      this.car.sprite.setPosition(pub.x-80,pub.y+75);
-      this.bicycle.sprite.setPosition(pub.x+30,pub.y+110);
+      const park=nearestRoad(pub.x+35,pub.y+48,this.driveRoads);
+      const cycle=nearestRoad(pub.x-25,pub.y-65,this.driveRoads);
+      if(park){this.car.sprite.setPosition(park.x,park.y);this.car.sprite.setRotation(park.angle);}
+      else this.car.sprite.setPosition(pub.x-80,pub.y+75);
+      if(cycle){this.bicycle.sprite.setPosition(cycle.x,cycle.y);this.bicycle.sprite.setRotation(cycle.angle);}
+      else this.bicycle.sprite.setPosition(pub.x+30,pub.y+110);
       this.cameras.main.setBounds(0,0,WORLD.width,WORLD.height);
       this.toast('Real OpenStreetMap streets loaded! © OpenStreetMap contributors.');
     }catch(error){
