@@ -100,15 +100,48 @@ export function parseCity(map:OSMMap):CityGeometry{
  for(const p of fixed)if(!pois.some(q=>q.type===p.type&&Math.hypot(q.point.x-p.point.x,q.point.y-p.point.y)<50))pois.push(p);
  return {buildings,roads,segments,trams,pois};
 }
+/**
+ * Prefer clear road/pavement positions near the requested landmark.
+ * A single unoccupied point is not enough: the player also needs room
+ * to walk in every direction or they can become wedged at spawn.
+ */
 export function findWalkableNear(desired:Vec2,city:CityGeometry):Vec2{
- const step=12;
- for(let ring=0;ring<=24;ring++){
-  for(let i=0;i<Math.max(1,ring*12);i++){
-   const angle=2*Math.PI*i/Math.max(1,ring*12);
-   const p={x:desired.x+Math.cos(angle)*ring*step,y:desired.y+Math.sin(angle)*ring*step};
-   if(p.x<10||p.y<10||p.x>WORLD_WIDTH-10||p.y>WORLD_HEIGHT-10)continue;
-   if(!circleHitsBuildings(p,5,city.buildings))return p;
+ const radius=5,clearance=12;
+ const valid=(p:Vec2)=>{
+  if(p.x<25||p.y<25||p.x>WORLD_WIDTH-25||p.y>WORLD_HEIGHT-25)return false;
+  if(circleHitsBuildings(p,radius,city.buildings))return false;
+  for(let i=0;i<12;i++){
+   const angle=2*Math.PI*i/12;
+   const next={x:p.x+Math.cos(angle)*clearance,y:p.y+Math.sin(angle)*clearance};
+   if(circleHitsBuildings(next,radius,city.buildings))return false;
+  }
+  return true;
+ };
+ const candidates:Vec2[]=[];
+ // Look on street centrelines and their edges, not in the pub building.
+ for(const s of city.segments){
+  const dx=s.bx-s.ax,dy=s.by-s.ay,len=Math.hypot(dx,dy);
+  if(len<.01)continue;
+  const mx=(s.ax+s.bx)/2,my=(s.ay+s.by)/2;
+  if(Math.hypot(mx-desired.x,my-desired.y)>350+len*.5)continue;
+  const t=Phaser.Math.Clamp(((desired.x-s.ax)*dx+(desired.y-s.ay)*dy)/(len*len),0,1);
+  for(const fraction of [t,0.1,0.35,0.65,0.9]){
+   const cx=s.ax+fraction*dx,cy=s.ay+fraction*dy;
+   const nx=-dy/len,ny=dx/len;
+   for(const offset of [0,s.width*.25,-s.width*.25,s.width*.5+10,-s.width*.5-10]){
+    candidates.push({x:cx+nx*offset,y:cy+ny*offset});
+   }
   }
  }
- return desired;
+ // Backup exhaustive radial search so even bad source-data can recover.
+ for(let ring=0;ring<35;ring++){
+  const n=Math.max(1,ring*24);
+  for(let i=0;i<n;i++){
+   const angle=2*Math.PI*i/n;
+   candidates.push({x:desired.x+Math.cos(angle)*ring*10,y:desired.y+Math.sin(angle)*ring*10});
+  }
+ }
+ candidates.sort((a,b)=>Math.hypot(a.x-desired.x,a.y-desired.y)-Math.hypot(b.x-desired.x,b.y-desired.y));
+ for(const candidate of candidates)if(valid(candidate))return candidate;
+ throw new Error('Unable to locate a walkable spawn near Maestro');
 }
