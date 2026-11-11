@@ -51,14 +51,18 @@ npm run deploy
 
 Implement geographically verified OSM-derived streets, map editing via LDtk, authentic pixel-art assets, enterable interiors and later multiplayer with Cloudflare Durable Objects.
 
-## V0.3 OpenStreetMap import
+## V0.3: permanent OpenStreetMap snapshot
 
-At build time `scripts/fetch-osm.mjs` fetches streets, tram tracks, buildings and nearby mapped POIs from the free Overpass API for a bounding box covering Mester utca. The downloaded vector data is bundled into `dist/osm-map.json`, so players do **not** query map APIs during gameplay. No API key or billing required.
+The game reads `public/osm-map.json` at runtime. **Cloudflare builds never request OpenStreetMap**.
 
-`src/world/osm.ts` converts geographic coordinates to game-world coordinates and renders the streets/buildings in Phaser. Maestro Pub (47.47857, 19.07400) and SPAR Market (47.4784266, 19.0742364) are pinned from public listings; other businesses are identified from OSM tags where present. Building collision uses approximate bounding rectangles, not yet precise polygon walls.
+To refresh the map, run GitHub Actions → "Import OpenStreetMap snapshot (manual refresh)" → Run workflow on `develop`, or run `npm run refresh:map` locally and commit `public/osm-map.json`. The workflow validates the downloaded roads/buildings and commits the real data to `develop` automatically.
 
-If all public Overpass endpoints are unavailable at build time, the pipeline deliberately emits an empty map response and the game falls back to the prior schematic world. Check Cloudflare build logs for `Extracted ... map elements` to confirm the real import succeeded.
+Only merge `develop` into `main` after `public/osm-map.json` exists with real OSM data and `npm run build` succeeds. If the import service is unavailable, the workflow fails without changing the previous snapshot. This protects the working game and avoids spurious production deployments.
 
-**OpenStreetMap data © OpenStreetMap contributors, ODbL:** https://www.openstreetmap.org/copyright
+Attribution: **© OpenStreetMap contributors, ODbL** · https://www.openstreetmap.org/copyright
 
-Use `npm run build` to import and compile, then `npx wrangler deploy` to publish. No additional accounts or paid APIs are necessary.
+### Production deployment
+Cloudflare builds are configured on the `main` branch, with `npm run build` and `npx wrangler deploy`. Geographic import happens separately on `develop`; the actual players never call Overpass.
+
+### Map limitations
+The vector map uses genuine OSM roads, buildings and tram tracks. Building collision still approximates polygons using rectangles. Some business locations can be missing in OSM and need manual verification. The simplified map remains a fallback until a real snapshot is committed.
