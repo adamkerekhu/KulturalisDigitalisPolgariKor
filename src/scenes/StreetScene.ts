@@ -128,7 +128,7 @@ export class StreetScene extends Phaser.Scene {
  private getInteraction():{label:string;type:'car'|'bike'|'poi';distance:number}|null{
   if(!this.city)return null;
   const p=this.player.position;
-  const items=[
+  const items:Array<{label:string;type:'car'|'bike'|'poi';distance:number}>=[
    {label:'DRIVE CAR',type:'car' as const,distance:Phaser.Math.Distance.Between(p.x,p.y,this.car.x,this.car.y)},
    {label:'RIDE BUBI',type:'bike' as const,distance:Phaser.Math.Distance.Between(p.x,p.y,this.bicycle.x,this.bicycle.y)}
   ];
