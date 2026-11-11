@@ -14,6 +14,8 @@ export class StreetScene extends Phaser.Scene {
   private active: Vehicle | null = null;
   private keys!: DirectionKeys;
   private obstacles!: Phaser.Physics.Arcade.StaticGroup;
+  private activeColliders: Rectangle[] = colliders;
+  private osmPoints: Array<{name:string;x:number;y:number}> = [];
   private stick = {x:0,y:0};
   private touchInteract = false;
   private toastTimer?: ReturnType<typeof setTimeout>;
@@ -77,6 +79,11 @@ export class StreetScene extends Phaser.Scene {
   }
   private nearbyLocation(): Location|undefined {
     const x=this.player.sprite.x,y=this.player.sprite.y;
+    if(this.osmPoints.length) {
+      const nearest=this.osmPoints.find(p=>Math.hypot(x-p.x,y-p.y)<105);
+      if(nearest)return {name:nearest.name,sub:'',x:nearest.x-5,y:nearest.y-5,w:10,h:10,color:0xffffff,icon:''};
+      return undefined;
+    }
     return locations.find(p=>Math.hypot(x-(p.x+p.w/2),y-(p.y+p.h/2))<210);
   }
   private interact():void {
@@ -107,7 +114,7 @@ export class StreetScene extends Phaser.Scene {
   }
   private isBlocked(x:number,y:number,r:number):boolean {
     return x<r||y<r||x>WORLD.width-r||y>WORLD.height-r||
-      colliders.some(b=>x+r>b.x+5&&x-r<b.x+b.w-5&&y+r>b.y+5&&y-r<b.y+b.h-5);
+      this.activeColliders.some(b=>x+r>b.x+5&&x-r<b.x+b.w-5&&y+r>b.y+5&&y-r<b.y+b.h-5);
   }
 
   update(_time:number,delta:number):void {
@@ -117,7 +124,7 @@ export class StreetScene extends Phaser.Scene {
     const dt=Math.min(delta/1000,.045);
     if(this.touchInteract){this.touchInteract=false;this.interact();}
     if(this.active){
-      this.active.steer(x,y,dt,colliders,WORLD.width,WORLD.height);
+      this.active.steer(x,y,dt,this.activeColliders,WORLD.width,WORLD.height);
       this.player.sprite.setPosition(this.active.x,this.active.y);
     } else {
       this.player.move(x,y,this.keys.SHIFT.isDown);
@@ -137,6 +144,9 @@ export class StreetScene extends Phaser.Scene {
       for(const child of [...this.children.list]) if((child as Phaser.GameObjects.GameObject & {depth:number}).depth<0)child.destroy();
       const footprints=drawOSMMap(this,map);
       this.obstacles.clear(true,true);
+      this.activeColliders=footprints;
+      this.osmPoints = map.elements.filter(e=>e.type==='node' && e.lat!=null && e.lon!=null && e.tags?.name && /maestro|gyros|spar|dohánybolt|bubi/i.test(e.tags.name)).map(e=>({name:e.tags!.name!,...mapToWorld(e.lat!,e.lon!)}));
+      this.osmPoints.push({name:'MAESTRO PUB',...mapToWorld(47.47857,19.07400)},{name:'SPAR MARKET',...mapToWorld(47.4784266,19.0742364)});
       for(const b of footprints) {
         const wall=this.obstacles.create(b.x+b.w/2,b.y+b.h/2,'invisible') as Phaser.Physics.Arcade.Image;
         wall.setDisplaySize(Math.max(4,b.w-12),Math.max(4,b.h-12)).setVisible(false).refreshBody();
