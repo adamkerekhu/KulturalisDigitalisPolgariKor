@@ -5,9 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
-    "build": "node scripts/fetch-osm.mjs && tsc --noEmit && vite build",
+    "build": "tsc --noEmit && vite build",
     "preview": "vite preview --host 0.0.0.0",
-    "deploy": "npm run build && wrangler deploy"
+    "deploy": "npm run build && wrangler deploy",
+    "refresh:map": "node scripts/fetch-osm.mjs"
   },
   "dependencies": {
     "phaser": "3.90.0"
