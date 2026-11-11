@@ -12,9 +12,7 @@ const query = `[out:json][timeout:35];(
 );out geom;`;
 const hosts = [
   'https://overpass.kumi.systems/api/interpreter',
-  'https://overpass-api.de/api/interpreter',
-  'https://overpass.nchc.org.tw/api/interpreter',
-  'https://overpass.private.coffee/api/interpreter'
+  'https://overpass-api.de/api/interpreter'
 ];
 let data;
 for (const host of hosts) {
@@ -24,7 +22,7 @@ for (const host of hosts) {
       method: 'POST',
       headers: {'Content-Type':'application/x-www-form-urlencoded', 'User-Agent':'LAST-ORDERS-Game/0.3 (+https://github.com/adamkerekhu/KulturalisDigitalisPolgariKor)'},
       body: new URLSearchParams({data:query}),
-      signal: AbortSignal.timeout(15000)
+      signal: AbortSignal.timeout(7000)
     });
     if (!response.ok) throw new Error('HTTP '+response.status);
     const json = await response.json();
