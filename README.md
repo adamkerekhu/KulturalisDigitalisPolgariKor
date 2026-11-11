@@ -1,68 +1,57 @@
-# LAST ORDERS · Mester utca (V0.2)
+# LAST ORDERS · Mester utca
 
-A free, browser-playable, top-down roaming game built with **Phaser 3.90**, TypeScript and Vite, hosted as static assets on Cloudflare Workers.
+Free, GTA 2-inspired top-down browser game taking place around Maestro Pub in Budapest IX.
 
-## Current gameplay
+## V0.5 features
 
-- One playable pedestrian, WASD/arrow keys, Shift to run
-- Phaser Arcade Physics building collisions and follow camera
-- Red car: press E near it to enter, W/S accelerate/reverse, A/D steer, E to exit
-- Green Bubi bicycle: E to ride or dismount
-- Labeled Maestro Pub, SPAR, tobacco shop and Mester Gyros
-- Mobile joystick + E control, +/- zoom on desktop
+- Actual OpenStreetMap street and building geometry (permanent versioned snapshot in `public/osm-map.json`)
+- Consistent real-world scale at **5 world pixels per metre**
+- Close on-foot camera, wider camera and directional look-ahead while driving
+- Drivable streets and slower handling off-road; roads and service roads remain accessible
+- Car and MOL Bubi sized to real street dimensions; park next to Maestro
+- Polygon-aware walking and vehicle collisions that preserve irregularly shaped buildings and courtyards
+- Original procedural Budapest roof artwork: roof slopes/ridges, brick tones, chimneys, skylights, roof shadows and lower wall/windows
+- Landmarks from OSM tags plus Maestro and SPAR anchors; other shop locations are only as accurate as OSM
 
-The Mester utca environment is a **schematic placeholder**, not actual survey-grade geographical data. Do not use it for navigation. Shop placements beyond Maestro are illustrative and must be confirmed before a faithful neighborhood map is produced.
+## Controls
+
+**WASD** or arrows: walk/steer and accelerate/reverse; **Shift**: sprint; **E**: vehicle/POI interaction; **+/-**: camera zoom. Touch joystick and E are available on mobile.
 
 ## Architecture
 
-- `src/main.ts`: Phaser initialization
-- `src/scenes/StreetScene.ts`: game world, input and gameplay loop
-- `src/entities/Player.ts`: character controller with Arcade Physics
-- `src/entities/Vehicle.ts`: drivable car and rideable bicycle
-- `src/world/map.ts`: editable map geometry, landmarks and collision rectangles
-- `src/style.css`: HUD and mobile controls
+```
+src/
+  main.ts                     Phaser game bootstrapping
+  scenes/StreetScene.ts       Loading, camera, controls, POIs
+  entities/Player.ts          Human character and polygon collision
+  entities/Vehicle.ts         Road-aware car / Bubi controller
+  world/geo.ts                OSM projection, scale, road segmentation, polygons
+  world/CityRenderer.ts       Procedural game-world surfaces and building art
+  world/osm.ts                OSM input schema
+public/osm-map.json           Offline bundled map snapshot
+scripts/fetch-osm.mjs         Explicit map refresh only
+```
 
-No React, Supabase, server, paid map API, registration or multiplayer yet. All gameplay is local to the browser.
-
-## Local development
+### Run and build
 
 ```bash
 npm install
 npm run dev
+npm run build
 ```
 
-## Production build and Cloudflare deployment
+Cloudflare Workers Builds on `main`:
+- Build: `npm run build`
+- Deploy: `npx wrangler deploy`
 
-Cloudflare Workers Builds settings:
+No map API key, no Google billing, no backend, no database and no multiplayer in this version. Public Overpass availability is NOT required during normal builds.
 
-- Branch: `main`
-- Build command: `npm run build`
-- Deploy command: `npx wrangler deploy`
+## Visual realism and licensing
 
-The Vite output is `dist/`. The existing `wrangler.jsonc` serves `dist/` as Worker static assets.
+Street and building **geometry** comes from OpenStreetMap (© OpenStreetMap contributors, ODbL, https://www.openstreetmap.org/copyright). All roof and façade textures are generated original procedural artwork. The building appearances are **not** verified photo-matched reproductions of Google Street View or Google Maps, which must not be copied or traced into game assets without appropriate rights.
 
-To deploy locally (with Wrangler authenticated):
+Roof style is a Budapest-inspired approximation. Correct residential roofs, storefront façades and accurate building heights still require independently licensed photographs or original references.
 
-```bash
-npm run deploy
-```
+## Limitations
 
-## Future work
-
-Implement geographically verified OSM-derived streets, map editing via LDtk, authentic pixel-art assets, enterable interiors and later multiplayer with Cloudflare Durable Objects.
-
-## V0.3: permanent OpenStreetMap snapshot
-
-The game reads `public/osm-map.json` at runtime. **Cloudflare builds never request OpenStreetMap**.
-
-To refresh the map, run GitHub Actions → "Import OpenStreetMap snapshot (manual refresh)" → Run workflow on `develop`, or run `npm run refresh:map` locally and commit `public/osm-map.json`. The workflow validates the downloaded roads/buildings and commits the real data to `develop` automatically.
-
-Only merge `develop` into `main` after `public/osm-map.json` exists with real OSM data and `npm run build` succeeds. If the import service is unavailable, the workflow fails without changing the previous snapshot. This protects the working game and avoids spurious production deployments.
-
-Attribution: **© OpenStreetMap contributors, ODbL** · https://www.openstreetmap.org/copyright
-
-### Production deployment
-Cloudflare builds are configured on the `main` branch, with `npm run build` and `npx wrangler deploy`. Geographic import happens separately on `develop`; the actual players never call Overpass.
-
-### Map limitations
-The vector map uses genuine OSM roads, buildings and tram tracks. Building collision still approximates polygons using rectangles. Some business locations can be missing in OSM and need manual verification. The simplified map remains a fallback until a real snapshot is committed.
+The map contains OSM way footprints; complex multi-ring building multipolygons may still need further treatment. Street widths are categorized estimates where explicit widths are absent. Vehicles do not yet interact with live traffic, traffic lights or pedestrian NPCs. Interiors and multiplayer are future work.
