@@ -5,7 +5,7 @@ import { drawCity } from '../world/CityRenderer';
 import { parseCity, project, nearestRoad, findWalkableNear, circleHitsBuildings, WORLD_WIDTH, WORLD_HEIGHT, type CityGeometry, type Vec2 } from '../world/geo';
 import type { OSMMap } from '../world/osm';
 
-type Controls={W:Phaser.Input.Keyboard.Key;A:Phaser.Input.Keyboard.Key;S:Phaser.Input.Keyboard.Key;D:Phaser.Input.Keyboard.Key;UP:Phaser.Input.Keyboard.Key;DOWN:Phaser.Input.Keyboard.Key;LEFT:Phaser.Input.Keyboard.Key;RIGHT:Phaser.Input.Keyboard.Key;SHIFT:Phaser.Input.Keyboard.Key;E:Phaser.Input.Keyboard.Key;PLUS:Phaser.Input.Keyboard.Key;MINUS:Phaser.Input.Keyboard.Key};
+type Controls={W:Phaser.Input.Keyboard.Key;A:Phaser.Input.Keyboard.Key;S:Phaser.Input.Keyboard.Key;D:Phaser.Input.Keyboard.Key;UP:Phaser.Input.Keyboard.Key;DOWN:Phaser.Input.Keyboard.Key;LEFT:Phaser.Input.Keyboard.Key;RIGHT:Phaser.Input.Keyboard.Key;SHIFT:Phaser.Input.Keyboard.Key;E:Phaser.Input.Keyboard.Key;R:Phaser.Input.Keyboard.Key;PLUS:Phaser.Input.Keyboard.Key;MINUS:Phaser.Input.Keyboard.Key};
 const hud=(key:string,value:string)=>{const el=document.getElementById(key);if(el)el.textContent=value;};
 export class StreetScene extends Phaser.Scene {
  private city:CityGeometry|null=null;
@@ -21,6 +21,7 @@ export class StreetScene extends Phaser.Scene {
  private toastHandle?:ReturnType<typeof setTimeout>;
  private ready=false;
  private hint!:Phaser.GameObjects.Text;
+ private spawnPoint:Vec2={x:0,y:0};
  constructor(){super('StreetScene');}
  create():void{
   this.makeTextures();
@@ -29,9 +30,10 @@ export class StreetScene extends Phaser.Scene {
   this.baseZoom=innerWidth<700?2.35:3.1;
   this.cameras.main.setZoom(this.baseZoom);
   this.keys=this.input.keyboard!.addKeys({
-   W:'W',A:'A',S:'S',D:'D',UP:'UP',DOWN:'DOWN',LEFT:'LEFT',RIGHT:'RIGHT',SHIFT:'SHIFT',E:'E',PLUS:'PLUS',MINUS:'MINUS'
+   W:'W',A:'A',S:'S',D:'D',UP:'UP',DOWN:'DOWN',LEFT:'LEFT',RIGHT:'RIGHT',SHIFT:'SHIFT',E:'E',R:'R',PLUS:'PLUS',MINUS:'MINUS'
   }) as Controls;
   this.input.keyboard?.on('keydown-E',(ev:KeyboardEvent)=>{if(!ev.repeat&&this.ready)this.interact();});
+  this.input.keyboard?.on('keydown-R',(ev:KeyboardEvent)=>{if(!ev.repeat&&this.ready)this.rescuePlayer();});
   this.input.keyboard?.on('keydown-PLUS',()=>{this.baseZoom=Phaser.Math.Clamp(this.baseZoom+.2,1.2,5.5);});
   this.input.keyboard?.on('keydown-MINUS',()=>{this.baseZoom=Phaser.Math.Clamp(this.baseZoom-.2,1.2,5.5);});
   this.configureTouch();
@@ -52,6 +54,7 @@ export class StreetScene extends Phaser.Scene {
    const base=road?.point||pub;
    const sidewalk=road?{x:base.x+Math.cos(road.angle)*(road.width/2+13),y:base.y+Math.sin(road.angle)*(road.width/2+13)}:pub;
    const spawn=findWalkableNear(sidewalk,this.city);
+   this.spawnPoint=spawn;
    this.player=new Player(this,spawn.x,spawn.y);
    const carStreet=nearestRoad({x:pub.x-27,y:pub.y+30},this.city.segments)||road;
    const bikeStreet=nearestRoad({x:pub.x+36,y:pub.y+18},this.city.segments)||road;
@@ -136,6 +139,16 @@ export class StreetScene extends Phaser.Scene {
   items.sort((a,b)=>a.distance-b.distance);
   const result=items[0];
   return result&&result.distance<(result.type==='poi'?45:35)?result:null;
+ }
+ private rescuePlayer():void{
+  if(!this.city)return;
+  if(this.active){this.active.speed=0;this.active=null;this.player.setVisible(true);}
+  // Recalculate from real road geometry, never use the pub's building coordinate.
+  const safe=findWalkableNear(this.spawnPoint,this.city);
+  this.player.setPosition(safe.x,safe.y);
+  hud('status','🚶 ON FOOT');
+  this.target.setPosition(safe.x,safe.y);
+  this.toast('Rescued! You are back on the pavement near Maestro.');
  }
  private interact():void{
   if(!this.city||!this.ready)return;
