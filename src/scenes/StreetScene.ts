@@ -134,7 +134,7 @@ export class StreetScene extends Phaser.Scene {
       const map = await response.json() as OSMMap;
       if(!Array.isArray(map.elements)||map.elements.length<50)throw new Error(map.error||'Map has no streets');
       // Remove only the original schematic scenery; the player and vehicles remain.
-      for(const child of [...this.children.list]) if(child.depth<0)child.destroy();
+      for(const child of [...this.children.list]) if((child as Phaser.GameObjects.GameObject & {depth:number}).depth<0)child.destroy();
       const footprints=drawOSMMap(this,map);
       this.obstacles.clear(true,true);
       for(const b of footprints) {
@@ -142,7 +142,9 @@ export class StreetScene extends Phaser.Scene {
         wall.setDisplaySize(Math.max(4,b.w-12),Math.max(4,b.h-12)).setVisible(false).refreshBody();
       }
       const pub=mapToWorld(47.47857,19.07400);
-      this.player.sprite.setPosition(pub.x-40,pub.y+12);
+      const candidates=[[pub.x-45,pub.y],[pub.x+45,pub.y],[pub.x,pub.y+45],[pub.x,pub.y-45],[pub.x-85,pub.y]];
+      const spawn=candidates.find(([x,y])=>x>20&&y>20&&x<WORLD.width-20&&y<WORLD.height-20&&!footprints.some(b=>x>b.x&&x<b.x+b.w&&y>b.y&&y<b.y+b.h)) ?? [pub.x,pub.y];
+      this.player.sprite.setPosition(spawn[0],spawn[1]);
       // Parked car and Bubi bike start near Maestro until confirmed station geometry is imported.
       this.car.sprite.setPosition(pub.x-80,pub.y+75);
       this.bicycle.sprite.setPosition(pub.x+30,pub.y+110);
