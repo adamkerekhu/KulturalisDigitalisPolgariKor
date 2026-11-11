@@ -37,3 +37,8 @@ No third-party map imagery is embedded or reproduced.
 ## Deployment trigger check (2026-11-11)
 
 A new commit to `main` requests an automatic build through the Cloudflare Workers Git integration. Verify the corresponding build and commit in Cloudflare's Deployments page; a GitHub commit alone does not confirm publication.
+
+
+## Release v0.1.3
+
+The red car now spawns at X=613, Y=1550 in the center of Mester utca, with the player beside it. The game displays v0.1.3 at the top left. This commit requests a fresh automatic Cloudflare build of `main`.
