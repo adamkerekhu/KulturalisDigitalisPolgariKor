@@ -1,9 +1,35 @@
-# LAST ORDERS · Mester utca
+# LAST ORDERS · Mester utca (V0.1)
 
-Free browser-based GTA2-inspired roaming prototype. One player, Maestro Pub, SPAR, tobacco shop, Mester Gyros, Bubi bike, drivable car. Game map is an illustrative approximation, **not precise geospatial data**.
+A free, single-player top-down browser game around Budapest's Mester utca. Walk around, visit labelled places, ride a MOL Bubi bike, and drive the red car.
 
-## Deploy
+## Controls
 
-Cloudflare Workers static assets: build command `echo ready`, deploy command `npx wrangler deploy` (requires Wrangler to be available to your build environment). Or use `npm run deploy` with package.json included.
+- WASD or arrow keys: walk / drive
+- Shift: sprint on foot
+- E: interact / enter / exit vehicle
+- +/-: zoom
+- Mobile: on-screen joystick and E button
 
-Controls: WASD / arrows, E interact, Shift sprint.
+## Technology
+
+**Zero runtime libraries:** HTML5 Canvas + JavaScript. The code runs directly in any recent browser. Cloudflare Workers serves the static HTML. No Supabase, Google Maps API, paid assets, backend or authentication.
+
+## Run locally
+
+Open `index.html` in Chrome/Firefox, or run `python -m http.server 8000` in the repository folder.
+
+## Deploy to Cloudflare Workers
+
+Use the existing Worker name `kulturalisdigitalispolgarikor` and Cloudflare Workers Builds connected to this repository (main branch).
+
+- Install command: `npm install`
+- Build command: `npm run build`
+- Deploy command: `npx wrangler deploy`
+
+The build copies the game into `public/` and Wrangler serves that folder via static assets. To deploy from your own terminal, run `npm install && npm run deploy` after authenticating with Wrangler.
+
+## Disclaimer
+
+The Mester utca street layout is **stylized and approximate**, not a survey-accurate OSM reconstruction. Maestro Pub is associated with Mester utca 46 and Mester Gyros with Mester utca 12. SPAR, tobacco shop and Bubi placements are gameplay placeholders until verified against geocoded sources. This map is not for navigation.
+
+No third-party map imagery is embedded or reproduced.
