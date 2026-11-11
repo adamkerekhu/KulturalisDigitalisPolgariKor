@@ -1,6 +1,6 @@
 export type Rectangle = { x: number; y: number; w: number; h: number };
 export type Location = Rectangle & { name: string; sub: string; color: number; icon: string; solid?: boolean };
-export const WORLD = { width: 1300, height: 2600 };
+export const WORLD = { width: 2000, height: 2000 };
 export const roads: Rectangle[] = [
   { x: 479, y: 0, w: 269, h: 2600 },
   { x: 0, y: 194, w: 1300, h: 121 },
