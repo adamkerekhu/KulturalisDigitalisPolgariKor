@@ -33,3 +33,7 @@ The build copies the game into `public/` and Wrangler serves that folder via sta
 The Mester utca street layout is **stylized and approximate**, not a survey-accurate OSM reconstruction. Maestro Pub is associated with Mester utca 46 and Mester Gyros with Mester utca 12. SPAR, tobacco shop and Bubi placements are gameplay placeholders until verified against geocoded sources. This map is not for navigation.
 
 No third-party map imagery is embedded or reproduced.
+
+## Deployment trigger check (2026-11-11)
+
+A new commit to `main` requests an automatic build through the Cloudflare Workers Git integration. Verify the corresponding build and commit in Cloudflare's Deployments page; a GitHub commit alone does not confirm publication.
